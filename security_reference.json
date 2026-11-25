@@ -1,0 +1,11 @@
+[
+  {"security_id": "AAPL", "restricted": true},
+  {"security_id": "GOOGL", "restricted": true},
+  {"security_id": "TSLA", "restricted": true},
+  {"security_id": "TCS", "restricted": false},
+  {"security_id": "XYZCORP", "restricted": false},
+  {"security_id": "INFY", "restricted": false},
+  {"security_id": "BADCO", "restricted": false},
+  {"security_id": "RELIANCE", "restricted": false},
+  {"security_id": "PENNY1", "restricted": false}
+]

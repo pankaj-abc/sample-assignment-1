@@ -1,0 +1,16 @@
+[
+  {"portfolio_id": "POR001", "security_id": "AAPL", "current_holding": 0, "max_position": 500},
+  {"portfolio_id": "POR001", "security_id": "TCS", "current_holding": 50, "max_position": 100},
+  {"portfolio_id": "POR001", "security_id": "XYZCORP", "current_holding": 0, "max_position": 100},
+  {"portfolio_id": "POR001", "security_id": "INFY", "current_holding": 0, "max_position": 100},
+  {"portfolio_id": "POR002", "security_id": "GOOGL", "current_holding": 0, "max_position": 100},
+  {"portfolio_id": "POR003", "security_id": "BADCO", "current_holding": 0, "max_position": 100},
+  {"portfolio_id": "POR003", "security_id": "TCS", "current_holding": 0, "max_position": 100},
+  {"portfolio_id": "POR003", "security_id": "INFY", "current_holding": 0, "max_position": 100},
+  {"portfolio_id": "POR003", "security_id": "RELIANCE", "current_holding": 0, "max_position": 100},
+  {"portfolio_id": "POR004", "security_id": "GOOGL", "current_holding": 0, "max_position": 100},
+  {"portfolio_id": "POR004", "security_id": "AAPL", "current_holding": 0, "max_position": 500},
+  {"portfolio_id": "POR005", "security_id": "PENNY1", "current_holding": 0, "max_position": 100},
+  {"portfolio_id": "POR005", "security_id": "AAPL", "current_holding": 0, "max_position": 500},
+  {"portfolio_id": "POR005", "security_id": "TCS", "current_holding": 0, "max_position": 100}
+]

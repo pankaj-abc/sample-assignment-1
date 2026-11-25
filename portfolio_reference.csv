@@ -1,0 +1,4 @@
+portfolio_id,security_id,available_cash,current_holding,max_position,restricted,manual_review_threshold
+POR001,AAPL,100000,20,100,YES,50000
+POR001,TCS,100000,50,100,NO,50000
+POR002,INFY,200000,20,100,NO,75000
