@@ -1,21 +1,21 @@
 portfolio_id,security_id,action,quantity,price,security_type,decision,reason
-POR001,AAPL,buy,20,150,Equity,Rejected,Security is restricted.
-POR001,AAPL,buy,60,150,Equity,Rejected,Security is restricted.
-POR001,TCS,sell,50,310,Equity,Approved,All checks passed.
-POR001,TCS,sell,60,310,Equity,Rejected,Insufficient security holdings.
-POR001,XYZCORP,buy,10,50,Equity,Approved,All checks passed.
-POR001,AAPL,buy,400,150,Equity,Rejected,Security is restricted.
-POR001,AAPL,buy,-10,150,Equity,Rejected,Quantity must be a positive number.
-POR001,INFY,buy,10,1500,Equity,Approved,All checks passed.
-POR002,GOOGL,buy,5,2000,Equity,Rejected,Security is restricted.
-POR003,BADCO,buy,10,100,Equity,Approved,All checks passed.
-POR003,TCS,buy,5,300,Equity,Approved,All checks passed.
-POR003,INFY,buy,50,1500,Equity,Needs Manual Sign-off,Trade value meets or exceeds the manual review threshold.
-POR003,RELIANCE,sell,30,2400,Equity,Rejected,Insufficient security holdings.
-POR003,RELIANCE,sell,31,2400,Equity,Rejected,Insufficient security holdings.
-POR004,GOOGL,buy,10,2000,Equity,Rejected,Security is restricted.
-POR004,AAPL,buy,300,150,Equity,Rejected,Security is restricted.
-POR005,PENNY1,buy,5,10,Equity,Approved,All checks passed.
-POR005,AAPL,buy,33,150,Equity,Rejected,Security is restricted.
-POR005,AAPL,buy,34,150,Equity,Rejected,Security is restricted.
-POR005,TCS,buy,20,250,Equity,Approved,All checks passed.
+POR001,AAPL,Buy,20,150,Equity,Rejected,Security is restricted for this portfolio.
+POR001,AAPL,Buy,60,150,Equity,Rejected,Security is restricted for this portfolio.
+POR001,TCS,Sell,50,310,Equity,Approved,Trade passed all checks.
+POR001,TCS,Sell,60,310,Equity,Rejected,Insufficient holdings to sell.
+POR001,XYZCORP,Buy,10,50,Equity,Approved,Trade passed all checks.
+POR001,AAPL,Buy,400,150,Equity,Rejected,Security is restricted for this portfolio.
+POR001,AAPL,Buy,-10,150,Equity,Rejected,Invalid trade data.
+POR001,INFY,Buy,10,1500,Equity,Needs Manual Sign-off,Exceeds maximum position concentration — requires approval.
+POR002,GOOGL,Buy,5,2000,Equity,Rejected,Security is restricted for this portfolio.
+POR003,BADCO,Buy,10,100,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR003,TCS,Buy,5,300,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR003,INFY,Buy,50,1500,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR003,RELIANCE,Sell,30,2400,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR003,RELIANCE,Sell,31,2400,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR004,GOOGL,Buy,10,2000,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR004,AAPL,Buy,300,150,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR005,PENNY1,Buy,5,10,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR005,AAPL,Buy,33,150,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR005,AAPL,Buy,34,150,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.
+POR005,TCS,Buy,20,250,Equity,Needs Manual Sign-off,Portfolio reference data is unavailable.

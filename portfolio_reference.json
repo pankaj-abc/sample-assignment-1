@@ -1,0 +1,21 @@
+[
+  {
+    "portfolio_id": "POR001",
+    "cash_balance": 100000,
+    "restricted_securities": ["AAPL", "GOOGL", "TSLA"],
+    "max_position_pct": 20,
+    "current_holdings": [
+      {"security_id": "TCS", "quantity": 50, "market_price": 310},
+      {"security_id": "INFY", "quantity": 20, "market_price": 1500}
+    ]
+  },
+  {
+    "portfolio_id": "POR002",
+    "cash_balance": 100000,
+    "restricted_securities": ["AAPL", "GOOGL", "TSLA"],
+    "max_position_pct": 20,
+    "current_holdings": [
+      {"security_id": "INFY", "quantity": 20, "market_price": 1500}
+    ]
+  }
+]

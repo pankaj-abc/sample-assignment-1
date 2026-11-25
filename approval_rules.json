@@ -1,3 +1,4 @@
 {
-  "manual_review_trade_value": 50000
+  "manual_review_trade_value": 50000,
+  "max_position_pct": 20
 }

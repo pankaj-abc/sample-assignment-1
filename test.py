@@ -2,148 +2,193 @@ import json
 from pathlib import Path
 import pandas as pd
 
-BASE = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent
+TRADE_FILE = BASE_DIR / "trades_test.csv"
+REFERENCE_FILE = BASE_DIR / "portfolio_reference.json"
+OUTPUT_FILE = BASE_DIR / "trade_approval_report.csv"
+
+REQUIRED_TRADE_COLUMNS = [
+    "portfolio_id", "security_id", "action", "quantity", "price", "security_type"
+]
 
 
-def load_json(name):
-    path = BASE / name
-    if not path.exists():
-        raise FileNotFoundError(f"Required file not found: {name}")
-    with path.open("r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-def number(value):
+def to_number(value):
+    """Convert a value to float; return None when it is not numeric."""
     try:
         return float(str(value).strip())
     except (TypeError, ValueError):
         return None
 
 
+def load_inputs():
+    if not TRADE_FILE.exists():
+        raise FileNotFoundError("trades_test.csv was not found beside test.py.")
+    if not REFERENCE_FILE.exists():
+        raise FileNotFoundError("portfolio_reference.json was not found beside test.py.")
+
+    trades = pd.read_csv(TRADE_FILE, dtype=str, keep_default_na=False)
+    trades.columns = trades.columns.str.strip().str.lower()
+
+    missing_columns = [column for column in REQUIRED_TRADE_COLUMNS if column not in trades.columns]
+    if missing_columns:
+        raise ValueError(f"trades_test.csv is missing columns: {missing_columns}")
+
+    with REFERENCE_FILE.open("r", encoding="utf-8") as file:
+        reference_data = json.load(file)
+
+    if not isinstance(reference_data, list):
+        raise ValueError("portfolio_reference.json must contain a JSON list of portfolios.")
+
+    return trades, reference_data
+
+
+def build_portfolio_lookup(reference_data):
+    portfolios = {}
+
+    for portfolio in reference_data:
+        portfolio_id = str(portfolio.get("portfolio_id", "")).strip().upper()
+        cash_balance = to_number(portfolio.get("cash_balance"))
+        max_position_pct = to_number(portfolio.get("max_position_pct"))
+        restricted = portfolio.get("restricted_securities")
+        current_holdings = portfolio.get("current_holdings")
+
+        if not portfolio_id or portfolio_id in portfolios:
+            raise ValueError("Each portfolio must have a unique, non-empty portfolio_id.")
+        if cash_balance is None or cash_balance < 0:
+            raise ValueError(f"Invalid cash_balance for portfolio {portfolio_id}.")
+        if max_position_pct is None or not 0 <= max_position_pct <= 100:
+            raise ValueError(f"max_position_pct for {portfolio_id} must be between 0 and 100.")
+        if not isinstance(restricted, list) or not isinstance(current_holdings, list):
+            raise ValueError(f"restricted_securities and current_holdings must be lists for {portfolio_id}.")
+
+        holdings = {}
+        for holding in current_holdings:
+            security_id = str(holding.get("security_id", "")).strip().upper()
+            quantity = to_number(holding.get("quantity"))
+            market_price = to_number(holding.get("market_price"))
+            if not security_id or security_id in holdings:
+                raise ValueError(f"Invalid or duplicate holding in portfolio {portfolio_id}.")
+            if quantity is None or quantity < 0 or market_price is None or market_price <= 0:
+                raise ValueError(f"Invalid quantity or market_price for {security_id} in {portfolio_id}.")
+            holdings[security_id] = {
+                "quantity": quantity,
+                "market_price": market_price
+            }
+
+        portfolios[portfolio_id] = {
+            "cash_balance": cash_balance,
+            "restricted_securities": {
+                str(security).strip().upper() for security in restricted
+            },
+            "max_position_pct": max_position_pct,
+            "current_holdings": holdings
+        }
+
+    return portfolios
+
+
+def evaluate_trade(trade, portfolios):
+    """Apply the requested rules in order and return decision and reason."""
+    portfolio_id = str(trade["portfolio_id"]).strip().upper()
+    security_id = str(trade["security_id"]).strip().upper()
+    action = str(trade["action"]).strip().lower()
+    quantity = to_number(trade["quantity"])
+    price = to_number(trade["price"])
+    security_type = str(trade["security_type"]).strip()
+
+    # Step 1: Validate trade data.
+    if (not portfolio_id or not security_id or not security_type
+            or quantity is None or quantity <= 0
+            or price is None or price <= 0
+            or action not in ("buy", "sell")):
+        return "Rejected", "Invalid trade data."
+
+    # Portfolio reference data is required to run Steps 2-5.
+    if portfolio_id not in portfolios:
+        return "Needs Manual Sign-off", "Portfolio reference data is unavailable."
+
+    portfolio = portfolios[portfolio_id]
+
+    # Step 2: Restricted security check.
+    if security_id in portfolio["restricted_securities"]:
+        return "Rejected", "Security is restricted for this portfolio."
+
+    holdings = portfolio["current_holdings"]
+    existing_quantity = holdings.get(security_id, {}).get("quantity", 0.0)
+
+    # Step 3: Sell check.
+    if action == "sell":
+        if existing_quantity < quantity:
+            return "Rejected", "Insufficient holdings to sell."
+        return "Approved", "Trade passed all checks."
+
+    # Step 4: Buy affordability check.
+    trade_cost = quantity * price
+    cash_balance = portfolio["cash_balance"]
+    if trade_cost > cash_balance:
+        return "Rejected", "Insufficient cash for this buy order."
+
+    # Step 5: Buy-only position concentration check.
+    post_trade_cash = cash_balance - trade_cost
+    post_trade_quantity = existing_quantity + quantity
+    post_trade_value_of_this_security = post_trade_quantity * price
+
+    value_of_other_holdings = 0.0
+    for other_security_id, holding in holdings.items():
+        if other_security_id != security_id:
+            value_of_other_holdings += holding["quantity"] * holding["market_price"]
+
+    total_portfolio_value_after = (
+        post_trade_cash
+        + post_trade_value_of_this_security
+        + value_of_other_holdings
+    )
+
+    if total_portfolio_value_after <= 0:
+        return "Rejected", "Invalid total portfolio value after trade."
+
+    position_pct = (
+        post_trade_value_of_this_security / total_portfolio_value_after
+    ) * 100
+
+    if position_pct > portfolio["max_position_pct"]:
+        return (
+            "Needs Manual Sign-off",
+            "Exceeds maximum position concentration — requires approval."
+        )
+
+    # Step 6: All checks passed.
+    return "Approved", "Trade passed all checks."
+
+
 def main():
-    print("\n========== PRE-TRADE COMPLIANCE CHECK ==========")
+    print("\n========== PORTFOLIO TRADE ORDER COMPLIANCE & EXECUTION CHECKER ==========")
 
     try:
-        trades_path = BASE / "trades_test.csv"
-        if not trades_path.exists():
-            raise FileNotFoundError("Required file not found: trades_test.csv")
-        trades = pd.read_csv(trades_path, dtype=str, keep_default_na=False)
-        trades.columns = trades.columns.str.strip().str.lower()
-
-        balances = load_json("portfolio_balance.json")
-        securities = load_json("security_reference.json")
-        positions = load_json("portfolio_positions.json")
-        rules = load_json("approval_rules.json")
-    except (FileNotFoundError, json.JSONDecodeError, pd.errors.EmptyDataError) as error:
+        trades, reference_data = load_inputs()
+        portfolios = build_portfolio_lookup(reference_data)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError, pd.errors.EmptyDataError) as error:
         print(f"INPUT ERROR: {error}")
         return
 
-    trade_columns = ["portfolio_id", "security_id", "action", "quantity", "price", "security_type"]
-    missing = [column for column in trade_columns if column not in trades.columns]
-    if missing:
-        print(f"INPUT ERROR: trades_test.csv is missing columns: {missing}")
-        return
     if trades.empty:
-        print("INPUT ERROR: trades_test.csv contains no trades.")
+        print("INPUT ERROR: trades_test.csv contains no proposed trades.")
         return
 
-    # Validate and index portfolio cash.
-    cash = {}
-    for item in balances:
-        portfolio = str(item.get("portfolio_id", "")).strip().upper()
-        amount = number(item.get("available_cash"))
-        if not portfolio or amount is None or amount < 0 or portfolio in cash:
-            print("INPUT ERROR: Invalid or duplicate portfolio balance entry.")
-            return
-        cash[portfolio] = amount
+    decisions = []
+    reasons = []
 
-    # Validate and index security restriction status.
-    security_ref = {}
-    for item in securities:
-        security = str(item.get("security_id", "")).strip().upper()
-        restricted = item.get("restricted")
-        if not security or not isinstance(restricted, bool) or security in security_ref:
-            print("INPUT ERROR: Security entries need unique security_id and true/false restricted values.")
-            return
-        security_ref[security] = restricted
-
-    # Validate and index holdings and position limits.
-    holdings = {}
-    limits = {}
-    for item in positions:
-        portfolio = str(item.get("portfolio_id", "")).strip().upper()
-        security = str(item.get("security_id", "")).strip().upper()
-        current = number(item.get("current_holding"))
-        maximum = number(item.get("max_position"))
-        key = (portfolio, security)
-        if not portfolio or not security or current is None or maximum is None or current < 0 or maximum < 0 or key in holdings:
-            print("INPUT ERROR: Invalid or duplicate portfolio position entry.")
-            return
-        holdings[key] = current
-        limits[key] = maximum
-
-    manual_threshold = number(rules.get("manual_review_trade_value"))
-    if manual_threshold is None or manual_threshold < 0:
-        print("INPUT ERROR: approval_rules.json needs a non-negative manual_review_trade_value.")
-        return
-
-    # Normalize proposed trade fields.
-    trades["portfolio_id"] = trades["portfolio_id"].str.strip().str.upper()
-    trades["security_id"] = trades["security_id"].str.strip().str.upper()
-    trades["action"] = trades["action"].str.strip().str.lower()
-
-    decisions, reasons = [], []
-
-    # Process in file order; only approved trades change simulated balances/holdings.
+    # Evaluate each trade against the reference snapshot, in input order.
+    # The stated rules do not request cash/holding updates between proposed trades.
     for _, trade in trades.iterrows():
-        portfolio = trade["portfolio_id"]
-        security = trade["security_id"]
-        action = trade["action"]
-        quantity = number(trade["quantity"])
-        price = number(trade["price"])
-        key = (portfolio, security)
-        decision = "Approved"
-        reason = "All checks passed."
-
-        if not portfolio or not security or not trade["security_type"].strip():
-            decision, reason = "Rejected", "Required trade details are missing."
-        elif action not in ("buy", "sell"):
-            decision, reason = "Rejected", "Action must be buy or sell."
-        elif quantity is None or quantity <= 0:
-            decision, reason = "Rejected", "Quantity must be a positive number."
-        elif price is None or price <= 0:
-            decision, reason = "Rejected", "Price must be a positive number."
-        elif portfolio not in cash or security not in security_ref or key not in holdings:
-            decision, reason = "Needs Manual Sign-off", "Required portfolio, security, cash, or holdings reference data is missing."
-        elif security_ref[security]:
-            decision, reason = "Rejected", "Security is restricted."
-        else:
-            value = quantity * price
-            if action == "buy" and value > cash[portfolio]:
-                decision, reason = "Rejected", "Insufficient available cash."
-            elif action == "sell" and quantity > holdings[key]:
-                decision, reason = "Rejected", "Insufficient security holdings."
-            elif action == "buy" and holdings[key] + quantity > limits[key]:
-                decision, reason = "Rejected", "Maximum position limit would be exceeded."
-            elif value >= manual_threshold:
-                decision, reason = "Needs Manual Sign-off", "Trade value meets or exceeds the manual review threshold."
-
-        if decision == "Approved":
-            value = quantity * price
-            if action == "buy":
-                cash[portfolio] -= value
-                holdings[key] += quantity
-            else:
-                holdings[key] -= quantity
-                cash[portfolio] += value
-
+        decision, reason = evaluate_trade(trade, portfolios)
         decisions.append(decision)
         reasons.append(reason)
 
     trades["decision"] = decisions
     trades["reason"] = reasons
 
-    output_columns = trade_columns + ["decision", "reason"]
+    output_columns = REQUIRED_TRADE_COLUMNS + ["decision", "reason"]
     print("\n========== TRADE APPROVAL REPORT ==========")
     print(trades[output_columns].to_string(index=False))
 
@@ -153,9 +198,8 @@ def main():
     print(f"Rejected: {(trades['decision'] == 'Rejected').sum()}")
     print(f"Needs Manual Sign-off: {(trades['decision'] == 'Needs Manual Sign-off').sum()}")
 
-    output_path = BASE / "trade_approval_report.csv"
-    trades[output_columns].to_csv(output_path, index=False)
-    print(f"\nReport saved: {output_path.name}")
+    trades[output_columns].to_csv(OUTPUT_FILE, index=False)
+    print(f"\nReport saved: {OUTPUT_FILE.name}")
     print("========== VALIDATION COMPLETED ==========")
 
 
